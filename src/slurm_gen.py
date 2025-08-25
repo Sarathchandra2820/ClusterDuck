@@ -1,4 +1,4 @@
-from jobs import Var_t, Jobs
+from var_t import Var_t, Jobs
 from job_aggregator import JobAggregator
 import os 
 

@@ -1,5 +1,5 @@
 import os,json
-from jobs import Var_t, Jobs
+from var_t import Var_t, Jobs
 
 class JobAggregator:
     """Aggregates jobs and writes them to JSON files."""
