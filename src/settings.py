@@ -28,21 +28,21 @@ class Settings():
 
 # Example usage
 
-settings = Settings()
-settings.job_name = "frag_test"
-settings.time = "10:00:00"
-settings.add_vars('ent_params',["random","symmetric"])
-settings.add_vars('ent_struct',["sym_in_out","sym_out_in","forward","backward"])
-settings.add_vars('lr',[0.01,0.05])
+# settings = Settings()
+# settings.job_name = "frag_test"
+# settings.time = "10:00:00"
+# settings.add_vars('ent_params',["random","symmetric"])
+# settings.add_vars('ent_struct',["sym_in_out","sym_out_in","forward","backward"])
+# settings.add_vars('lr',[0.01,0.05])
 
 
 
 
-configs = settings.configs()
+# configs = settings.configs()
 
-print(settings.job_name)
-for c in configs:
-    print(c.as_dict(), c.uid())
+# print(settings.job_name)
+# for c in configs:
+#     print(c.as_dict(), c.uid())
 
 
 
