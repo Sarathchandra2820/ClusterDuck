@@ -1,3 +1,59 @@
-This is a lean code to generate slurm job script given some input variation.
-Given some inputs [v1,v2,v3,...] and each input has a variation [{L1},{L2},{L3},...], the code generates job objects that will be vectorised using the slurm arrays and radix vectorisation to be performed on different compute nodes. 
-This tool offers create customisibility interms of setting folder structure and control job submission (including batching, applying filters for which jobs to be run in parallel)
+# ClusterDuck – SLURM Job Script Generator
+
+This is a **lean Python toolkit** to generate SLURM job scripts from input sweeps.  
+
+Given a set of variables
+
+$$
+[v_1, v_2, v_3, \dots]
+$$
+
+and each variable having its own sweep
+
+$$
+[L_1], [L_2], [L_3], \dots
+$$
+
+the code generates **Job objects** that are **vectorised** using SLURM job arrays.  
+
+A **mixed-radix decomposition** maps the flat `SLURM_ARRAY_TASK_ID` into the corresponding combination of inputs, ensuring every compute node receives a unique task.
+
+---
+
+## ✨ Features
+
+- **Automatic job array expansion**  
+  Each input sweep expands into the full set of combinations, submitted via `#SBATCH --array`.
+
+- **Mixed-radix vectorisation**  
+  For a given task index k = SLURM_ARRAY_TASKID, the indices for each variable are computed as:
+  $$
+  i_j =  \frac{k}{R_j} \text{mod} L_j
+  $$
+  where
+  $$
+  R_j = \prod_{m=j+1}^{N-1} L_m, \quad R_{N-1} = 1
+  $$
+  and \(L_j\) is the number of values for variable \(j\).
+
+- **Customisable folder structure**  
+  Define your own schema (e.g. `molecule->method->distance`) to automatically organise output and scratch directories.
+
+- **Flexible path management**  
+  Separate input scripts, scratch dirs, and output dirs.
+
+- **Submission control**  
+  - Batch jobs with concurrency limits  
+  - Apply filters to skip or select specific combinations  
+  - Run jobs in parallel with custom grouping  
+
+---
+
+## 📦 Installation
+
+Clone the repo and install locally:
+
+```bash
+git clone https://github.com/yourname/clusterduck.git
+cd clusterduck
+pip install -e .
