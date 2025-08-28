@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "clusterduck"
+version = "0.1.0"
+description = "Lean SLURM job script generator with radix vectorisation"
+authors = [{name="Your Name", email="you@example.com"}]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.9"
+
+[tool.setuptools.packages.find]
+where = ["."]

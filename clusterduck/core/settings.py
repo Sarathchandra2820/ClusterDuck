@@ -1,16 +1,16 @@
 from dataclasses import dataclass, field
-from var_t import Var_t
-from sweep import Sweep
+from clusterduck.core.var_t import Var_t
+from clusterduck.core.sweep import Sweep
 
 @dataclass
 class Settings():
 
-    time: str = "01:00:00"
-    job_name: str = "test_job"
-    mem: str = "4GB"
-    partition: str = "tc"
-    mail_type: str = "None"
-    concurrency: int = 5
+    time: str = None
+    job_name: str = None
+    mem: str = None
+    partition: str = None
+    mail_type: str = "NONE" #by default
+    concurrency: int = None
     variable : Sweep = field(default_factory=Sweep)
 
     # input_script : str
@@ -19,9 +19,7 @@ class Settings():
 
     def add_vars(self,name,sweep):
         self.variable.add(Var_t(name,sweep))
-        return self 
-    
-    
+        return self     
     
     def configs(self):
         return self.variable.generate()

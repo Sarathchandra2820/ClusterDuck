@@ -1,4 +1,4 @@
-from var_t import Var_t, Config
+from clusterduck.core.var_t import Var_t, Config
 from dataclasses import dataclass, field
 from itertools import product
 
