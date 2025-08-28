@@ -1,4 +1,5 @@
-from dataclasses import dataclass
+from dataclasses import dataclass,field
+from typing import List
 import os
 
 @dataclass 
@@ -6,8 +7,9 @@ class PathSchema:
     
     variable = list = None
     struct : str = None  #Specify the folder structure that one wishes the outputs to be stored in 
-    output_key : str = None # Optional : If the scratch is the temp then specify with files to be stored in output dir 
-    scratch_key : str = None #Specify which files to be stored in scratch directory ; For ex plams_workdir* ... 
+
+    output_key : List[str] = field(default_factory=list)
+    scratch_key : List[str] = None #Specify which files to be stored in scratch directory ; For ex plams_workdir* ... 
 
     def struct_path(self,settings=None) -> str: 
 
