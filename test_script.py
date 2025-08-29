@@ -1,5 +1,6 @@
 from clusterduck.jobs.jobs import Job
 from clusterduck.slurm.slurm_write import SlurmWrite
+import os
 
 
 
@@ -18,6 +19,10 @@ j1.settings.add("output", "./out/%x-%A_%a.out")  # --output=...
 j1.settings.add("error", "./err/%x-%A_%a.err")   # --error=...
 
 j1.settings.module_load = ["shared", "2024", "slurm"]
+j1.settings.add_export('AMSHOME','/scistor/tc/huw587/amshome')
+j1.settings.add_export('AMSBIN','/scistor/tc/huw587/amshome')
+j1.settings.add_export('AMSBIN','/scistor/tc/huw587/amshome')
+
 j1.settings.add_vars('molecule',["ethylene","benzene","pyrene"])
 j1.settings.add_vars('distance',(3,14,1))
 j1.settings.add_vars('method',["G0W0","evGW","TDDFT"])
@@ -26,6 +31,11 @@ j1.settings.add_vars("charge", [0, 1, -1])
 j1.settings.add_vars("spin_multiplicity", [1, 3])
 j1.settings.add_vars("n_cas_electrons", (2, 10, 2))   # expands 2,4,6,8,10
 j1.settings.add_vars("n_cas_orbitals", (4, 12, 2))    # expands 4,6,8,10,12
+
+
+j1.set_paths.input_script = os.path.join(os.getcwd(),'test_job.sh')
+j1.set_paths.scratch_dir = os.path.join(os.getcwd(),'scratch')
+j1.set_paths.dependancies = [os.path.join(os.getcwd(),'run.sh'), os.path.join(os.getcwd(),'run.slurm')]
 
 # s = Settings()
 # print(s)

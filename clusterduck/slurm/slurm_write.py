@@ -17,6 +17,10 @@ class SlurmWrite:
         # Load modules or other cluster-specific defaults
         for elem in self.jobs.settings.module_load:
             header.append(f"module load {elem}")
+
+        for key,val in self.jobs.settings.export_opts.items():
+            header.append(f'export {key}="{val}"')
+
         return "\n".join(header)
    
 
@@ -28,10 +32,25 @@ class SlurmWrite:
 
         return lines 
     
-    # def scratch_copying(self.jobs)
+    def scratch_copying(self):
 
-    #     return scratch_copying 
-    
+
+        path_input = self.jobs.set_paths.input_script
+        path_scratch = self.jobs.set_paths.scratch_dir
+
+        path_dependancies = self.jobs.set_paths.dependancies  #files we want to copy to the scratch
+
+        lines=[
+
+            f'cp -rfv {path_input} {path_scratch}',
+            f'cp -rfv {" ".join(path_dependancies)} {path_scratch}'
+        
+        ]
+
+
+
+        return '\n'.join(lines)
+        
     # def output_logic_write(self.jobs)
 
     #     retun blah blah blah 
@@ -40,6 +59,8 @@ class SlurmWrite:
 
         header = self.header_write()
 
+        scratch_copying = self.scratch_copying()
+
         #copy_file_logic = scratch_copying(self.jobs)
 
         # if self.jobs.set_paths.env_path is not None:
@@ -47,7 +68,7 @@ class SlurmWrite:
 
         radix = self.radix_logic()
         
-        script = [header, radix]
+        script = [header, scratch_copying, radix]
 
 
         return '\n'.join(script)

@@ -12,6 +12,10 @@
 module load shared
 module load 2024
 module load slurm
+export AMSHOME="/scistor/tc/huw587/amshome"
+export AMSBIN="/scistor/tc/huw587/amshome"
+cp -rfv /home/sarath/Documents/ClusterDuck/test_job.sh /home/sarath/Documents/ClusterDuck/scratch
+cp -rfv /home/sarath/Documents/ClusterDuck/run.sh /home/sarath/Documents/ClusterDuck/run.slurm /home/sarath/Documents/ClusterDuck/scratch
 L0=${{#molecule_vals[@]}}   # molecule
 L1=${{#distance_vals[@]}}   # distance
 L2=${{#method_vals[@]}}   # method

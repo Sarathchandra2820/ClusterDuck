@@ -7,6 +7,7 @@ class Settings:
     
     sbatch_opts : dict =  field(default_factory=dict)
     module_load : list[str] = field(default_factory=list)
+    export_opts : dict = field(default_factory=dict)
     # time: str = None
     # job_name: str = None
     # mem: str = None
@@ -17,6 +18,9 @@ class Settings:
 
     def add(self,key:str, value: str):
         self.sbatch_opts[key] = value
+    
+    def add_export(self,key:str, value : str):
+        self.export_opts[key] = value
 
     # input_script : str
     # dependancies : list[str] = field(default_factory=list)
