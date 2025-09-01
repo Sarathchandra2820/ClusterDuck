@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=test_job
+#SBATCH --array=0-8%108
 #SBATCH --time=02:00:00
 #SBATCH --mem=8GB
 #SBATCH --partition=tc
@@ -14,42 +14,29 @@ module load 2024
 module load slurm
 export AMSHOME="/scistor/tc/huw587/amshome"
 export AMSBIN="/scistor/tc/huw587/amshome"
-cp -rfv /home/sarath/Documents/ClusterDuck/test_job.sh /home/sarath/Documents/ClusterDuck/scratch
-cp -rfv /home/sarath/Documents/ClusterDuck/run.sh /home/sarath/Documents/ClusterDuck/run.slurm /home/sarath/Documents/ClusterDuck/scratch
-L0=${{#molecule_vals[@]}}   # molecule
-L1=${{#distance_vals[@]}}   # distance
-L2=${{#method_vals[@]}}   # method
-L3=${{#basis_set_vals[@]}}   # basis_set
-L4=${{#charge_vals[@]}}   # charge
-L5=${{#spin_multiplicity_vals[@]}}   # spin_multiplicity
-L6=${{#n_cas_electrons_vals[@]}}   # n_cas_electrons
-L7=${{#n_cas_orbitals_vals[@]}}   # n_cas_orbitals
+declare -a molecule_vals=("ethylene" "benzene" "pyrene")
+declare -a distance_vals=(3 4 5 6 7 8 9 10 11 12 13 14)
+declare -a method_vals=("G0W0" "evGW" "TDDFT")
+mkdir -p /Users/sarath/Documents/Research/other_projects/clusterduck/outdir
+cp -rfv /Users/sarath/Documents/Research/other_projects/clusterduck/test_job.sh $TMPDIR
+cp -rfv /Users/sarath/Documents/Research/other_projects/clusterduck/run.sh /Users/sarath/Documents/Research/other_projects/clusterduck/run.slurm $TMPDIR
+cd $TMPDIR
+L0=${#molecule_vals[@]}  # molecule
+L1=${#distance_vals[@]}  # distance
+L2=${#method_vals[@]}  # method
 
-R0=$(( L1 * L2 * L3 * L4 * L5 * L6 * L7 ))  # product of later lengths
-R1=$(( L2 * L3 * L4 * L5 * L6 * L7 ))  # product of later lengths
-R2=$(( L3 * L4 * L5 * L6 * L7 ))  # product of later lengths
-R3=$(( L4 * L5 * L6 * L7 ))  # product of later lengths
-R4=$(( L5 * L6 * L7 ))  # product of later lengths
-R5=$(( L6 * L7 ))  # product of later lengths
-R6=$(( L7 ))  # product of later lengths
-R7=1
+R0=$(( L1 * L2 ))  # product of later lengths
+R1=$(( L2 ))  # product of later lengths
+R2=1
 
 k=${SLURM_ARRAY_TASK_ID}
 
 i0=$(( (k / R0) % L0 ))
 i1=$(( (k / R1) % L1 ))
 i2=$(( (k / R2) % L2 ))
-i3=$(( (k / R3) % L3 ))
-i4=$(( (k / R4) % L4 ))
-i5=$(( (k / R5) % L5 ))
-i6=$(( (k / R6) % L6 ))
-i7=$(( (k / R7) % L7 ))
 
 molecule="${molecule_vals[$i0]}"
 distance="${distance_vals[$i1]}"
 method="${method_vals[$i2]}"
-basis_set="${basis_set_vals[$i3]}"
-charge="${charge_vals[$i4]}"
-spin_multiplicity="${spin_multiplicity_vals[$i5]}"
-n_cas_electrons="${n_cas_electrons_vals[$i6]}"
-n_cas_orbitals="${n_cas_orbitals_vals[$i7]}"
+cp -rfv params* /Users/sarath/Documents/Research/other_projects/clusterduck/outdir/molecule/distance/method 
+cp -rfv energies* /Users/sarath/Documents/Research/other_projects/clusterduck/outdir/molecule/distance/method 

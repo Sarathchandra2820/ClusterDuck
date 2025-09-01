@@ -9,7 +9,7 @@ def generate_radix_block(schema) -> str:
 
     # Length variables
     for i, key in enumerate(schema):
-        lines.append(f"L{i}=${{{{#{key}_vals[@]}}}}   # {key}")
+        lines.append(f"L{i}=${{#{key}_vals[@]}}  # {key}")
 
     lines.append("")  # spacing
 

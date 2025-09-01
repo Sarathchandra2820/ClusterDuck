@@ -4,7 +4,8 @@ from clusterduck.core.sweep import Sweep
 
 @dataclass
 class Settings:
-    
+    concurrency : int = None
+    job_name : str = None
     sbatch_opts : dict =  field(default_factory=dict)
     module_load : list[str] = field(default_factory=list)
     export_opts : dict = field(default_factory=dict)
