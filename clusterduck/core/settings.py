@@ -1,73 +1,46 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from clusterduck.core.var_t import Var_t
+import re
+from typing import Any, Dict, List, Optional
+
 from clusterduck.core.sweep import Sweep
+from clusterduck.core.var_t import Var_t
+
+
+_RESERVED_OPTIONS = {"array", "job-name"}
+_SBATCH_KEY = re.compile(r"^[a-zA-Z][a-zA-Z0-9-]*$")
+
 
 @dataclass
 class Settings:
-    concurrency : int = None
-    job_name : str = None
-    sbatch_opts : dict =  field(default_factory=dict)
-    module_load : list[str] = field(default_factory=list)
-    export_opts : dict = field(default_factory=dict)
-    # time: str = None
-    # job_name: str = None
-    # mem: str = None
-    # partition: str = None
-    # mail_type: str = "NONE" #by default
-    # concurrency: int = None
-    variable : Sweep = field(default_factory=Sweep)
+    concurrency: Optional[int] = None
+    job_name: Optional[str] = None
+    sbatch_opts: Dict[str, str] = field(default_factory=dict)
+    module_load: List[str] = field(default_factory=list)
+    export_opts: Dict[str, str] = field(default_factory=dict)
+    variable: Sweep = field(default_factory=Sweep)
 
-    def add(self,key:str, value: str):
-        self.sbatch_opts[key] = value
-    
-    def add_export(self,key:str, value : str):
-        self.export_opts[key] = value
+    def add(self, key: str, value: Any) -> None:
+        normalized = key.strip().lstrip("-").replace("_", "-")
+        if not _SBATCH_KEY.fullmatch(normalized):
+            raise ValueError(f"invalid SBATCH option name: {key}")
+        if normalized in _RESERVED_OPTIONS:
+            raise ValueError(f"'{normalized}' is managed by ClusterDuck")
+        self.sbatch_opts[normalized] = str(value)
 
-    # input_script : str
-    # dependancies : list[str] = field(default_factory=list)
-    # output_dir : str
+    def add_export(self, key: str, value: Any) -> None:
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key):
+            raise ValueError(f"invalid environment variable name: {key}")
+        self.export_opts[key] = str(value)
 
-    def add_vars(self,name,sweep):
-        self.variable.add(Var_t(name,sweep))
-        return self     
-    
+    def add_vars(self, name: str, sweep: Any) -> "Settings":
+        self.variable.add(Var_t(name, sweep))
+        return self
+
     def configs(self):
         return self.variable.generate()
 
-# Example usage
-
-# settings = Settings()
-# settings.add('job-name',"default")
-# settings.add('time','01:00:00')
-# settings.add('concurrency','5')
-# settings.add_vars('ent_params',["random","symmetric"])
-# settings.add_vars('ent_struct',["sym_in_out","sym_out_in","forward","backward"])
-# settings.add_vars('lr',[0.01,0.05])
-
-
-
-
-
-
-
-# configs = settings.configs()
-
-# print(settings.job_name)
-# for c in configs:
-#     print(c.as_dict(), c.uid())
-
-
-
-    
-
-# j = Jobs()
-# j.add(Var_t('ent_params',["random","symmetric"]))
-# j.add(Var_t('ent_struct',["sym_in_out","sym_out_in","forward","backward"]))
-# j.add(Var_t('lr',[0.01,0.05]))
-
-# settings = Settings()
-# settings.time = "80:00:00"
-# settings.var.add(Var_t('ent_params',["random","symmetric"]))
-# settings.var.add(Var_t('ent_struct',["sym_in_out","sym_out_in","forward","backward"]))
-
-# print(settings.var)
+    @property
+    def task_count(self) -> int:
+        return self.variable.task_count

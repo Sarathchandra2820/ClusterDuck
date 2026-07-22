@@ -1,115 +1,83 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
+from decimal import Decimal
 import hashlib
+import re
+from typing import Any, Iterable, List, Tuple
 
 
+_SHELL_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
-# class Var_t():
-#     def __init__(self,name,sweep=None):
-#         if name is None:
-#             self.name = ""
-#         elif isinstance(name, str):
-#             self.name = name
-#         if isinstance(sweep, list):
-#             self.sweep = sweep
-#         if isinstance(sweep, int) or isinstance(sweep, float):
-#             self.sweep = [sweep]
-#         if isinstance(sweep, (tuple)) and len(sweep) == 3:
-#             start, end, step = sweep
-#             self.sweep = [round(start + i * step, 10) for i in range(int((end - start) / step) + 1)]
+def _numeric_range(start: Any, end: Any, step: Any) -> List[Any]:
+    """Expand an inclusive numeric range without accumulating float drift."""
+    if step == 0:
+        raise ValueError("sweep step cannot be zero")
 
-#     def __repr__(self):
-#         return f"Var_t({self.name},{self.sweep})"
+    start_d = Decimal(str(start))
+    end_d = Decimal(str(end))
+    step_d = Decimal(str(step))
+    if (end_d - start_d) * step_d < 0:
+        raise ValueError("sweep step points away from the end value")
+
+    values: List[Any] = []
+    current = start_d
+    compare = (lambda value: value <= end_d) if step_d > 0 else (lambda value: value >= end_d)
+    all_integral = all(isinstance(value, int) and not isinstance(value, bool) for value in (start, end, step))
+    while compare(current):
+        values.append(int(current) if all_integral else float(current))
+        current += step_d
+    return values
+
 
 @dataclass
 class Var_t:
-    name: str 
-    sweep: object
+    """A named set of values used by a SLURM parameter sweep."""
 
-    def __post_init__(self):
-        if not isinstance(self.name, str):
-            raise TypeError("name must be a string")
-        if isinstance(self.sweep, list):
-            pass
-        elif isinstance(self.sweep, int) or isinstance(self.sweep, float):
-            self.sweep = [self.sweep]
+    name: str
+    sweep: Any
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.name, str) or not _SHELL_NAME.fullmatch(self.name):
+            raise ValueError(
+                "parameter names must be valid shell identifiers "
+                "(letters, numbers and underscores; cannot start with a number)"
+            )
+
+        values: Iterable[Any]
+        if isinstance(self.sweep, range):
+            values = list(self.sweep)
+        elif isinstance(self.sweep, list):
+            values = list(self.sweep)
         elif isinstance(self.sweep, tuple):
-            if len(self.sweep) == 3:
-                start, end, step = tuple(self.sweep)
-                self.sweep = [round(start + i * step, 10) for i in range(int((end - start) / step) + 1)]
-            else:
-                raise ValueError("If sweep is a tuple, it must be of the form (start, end, step)")
+            if len(self.sweep) != 3:
+                raise ValueError("a tuple sweep must be (start, end, step)")
+            values = _numeric_range(*self.sweep)
+        elif isinstance(self.sweep, (int, float, str)) and not isinstance(self.sweep, bool):
+            values = [self.sweep]
         else:
-            raise TypeError("sweep must be a list, int, float, or a tuple of (start, end, step)")
+            raise TypeError("sweep must be a scalar, list, range, or (start, end, step) tuple")
+
+        self.sweep = list(values)
+        if not self.sweep:
+            raise ValueError(f"sweep '{self.name}' must contain at least one value")
+        if any(value is None for value in self.sweep):
+            raise ValueError(f"sweep '{self.name}' cannot contain None")
+        if any(
+            isinstance(value, str) and any(character in value for character in ("\x00", "\n", "\r"))
+            for value in self.sweep
+        ):
+            raise ValueError(f"sweep '{self.name}' cannot contain NUL or newline characters")
+
 
 @dataclass(frozen=True)
 class Config:
-    kv: tuple  # sorted (name, value) pairs
+    kv: Tuple[Tuple[str, Any], ...]
 
-    def as_dict(self): return dict(self.kv)
-    def uid(self):
-        m = hashlib.md5(repr(self.kv).encode()); return m.hexdigest()[:8]
-    
+    def as_dict(self) -> dict:
+        return dict(self.kv)
 
-    
-
-          
-# class Jobs():
-#     def __init__(self, var_type=None):
-       
-#         if var_type is None:
-#             self.var_type = []
-
-#     def add(self,var_type):
-#         if isinstance(var_type, Var_t):
-#             self.var_type.append(var_type)
-#         else:
-#             raise TypeError("var_type must be an instance of Var_t")
-        
-#     def generate_configs(self):
-#         sweeps = [v.sweep for v in self.var_type]
-#         return list(itertools.product(*sweeps))
-    
-#     def export_vartype(self):
-#         return [v.name for v in self.var_type]
-    
-
-    # def __str__(self):
-    #     configs = self.generate_configs()
-    #     return "\n".join(str(c) for c in configs)
-    
-
-
-
-
-    # def write_scripts(self):
-    #     names = self.jobs.export_vartype()
-    #     for i, cfg in enumerate(self.jobs.generate_configs()):
-    #         path = os.path.join(self.outdir, f"job_{i}.sh")
-    #         args = " ".join(f"--{k} {v}" for k,v in zip(names, cfg))
-    #         with open(path,"w") as f:
-    #             f.write("#!/bin/bash\n")
-    #             f.write(f"python run_cluster.py {args}\n")
-
-
-
-# Example usage
-# if __name__ == "__main__":
-#     v1 = Var_t("ent_par",(3,10,1))
-#     print(list[v1])
-    # j = Jobs()
-    # # j.add(Var_t([1, 2]))
-    # # j.add(Var_t(["sym_in_out","sym_out_in"]))
-    # # j.add(Var_t((10, 30, 10)))   # expands to [10, 20, 30]
-    # # j.add(Var_t(5))              # single value
-
-    # j.add(Var_t('ent_params',["random","symmetric"]))
-    # j.add(Var_t('ent_struct',["sym_in_out","sym_out_in","forward","backward"]))
-    # j.add(Var_t('lr',0.01))
-    # j.add(Var_t('nr_ent',[4,5,6,7]))
-    # j.add(Var_t('layer',(10, 30, 10)))   # expands to [10, 20, 30]
-    
-    # #mj.write_json()
-    
-    # print("Var types:")
-    # print(j.export_vartype())
+    def uid(self) -> str:
+        digest = hashlib.sha256(repr(self.kv).encode("utf-8"))
+        return digest.hexdigest()[:12]

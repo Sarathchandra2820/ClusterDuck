@@ -1,39 +1,35 @@
-from clusterduck.core.var_t import Var_t, Config
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from itertools import product
+from math import prod
+from typing import Iterator, List
+
+from clusterduck.core.var_t import Config, Var_t
+
 
 @dataclass
-class Sweep():
-    var: list[Var_t] = field(default_factory=list)
+class Sweep:
+    var: List[Var_t] = field(default_factory=list)
 
+    def add(self, variable: Var_t) -> None:
+        if any(existing.name == variable.name for existing in self.var):
+            raise ValueError(f"duplicate sweep parameter: {variable.name}")
+        self.var.append(variable)
 
-    def add(self, var_t: Var_t):
-        self.var.append(var_t)
-    
-    def generate(self) -> list[Config]:
-        names = [v.name for v in self.var]
-        grid = [v.sweep for v in self.var]
-        configs=[]
+    @property
+    def task_count(self) -> int:
+        return prod(len(variable.sweep) for variable in self.var) if self.var else 1
 
-        for combo in product(*grid):
-            kv = tuple(sorted(zip(names, combo)))
-            configs.append(Config(kv))
-        return configs
-    
-    def export_names(self) -> list:
-        var_names = [v.name for v in self.var]
-        return var_names
+    def iter_configs(self) -> Iterator[Config]:
+        names = [variable.name for variable in self.var]
+        grids = [variable.sweep for variable in self.var]
+        for combination in product(*grids):
+            yield Config(tuple(zip(names, combination)))
 
-    
+    def generate(self) -> List[Config]:
+        """Compatibility helper. Prefer iter_configs() for large sweeps."""
+        return list(self.iter_configs())
 
-
-# v1 = Var_t('ent_params',["random","symmetric"])
-# v2 = Var_t('ent_struct',["sym_in_out","sym_out_in","forward","backward"])
-
-# sw = Sweep([v1,v2])
-# configs = sw.generate()
-
-# for c in configs:
-#     print(c.as_dict(), c.uid())
-
-# print("Var names:", sw.export_names())
+    def export_names(self) -> List[str]:
+        return [variable.name for variable in self.var]

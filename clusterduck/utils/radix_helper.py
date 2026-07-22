@@ -1,41 +1,29 @@
-def generate_radix_block(schema) -> str:
+from __future__ import annotations
 
-    """
-    schema: ordered list of variable names, e.g. ["molecule","method","distance"]
-    returns: bash code string that computes indices and extracts values
-    """
-    lines = []
-    n = len(schema)
+from typing import Iterable
 
-    # Length variables
-    for i, key in enumerate(schema):
-        lines.append(f"L{i}=${{#{key}_vals[@]}}  # {key}")
 
-    lines.append("")  # spacing
+def generate_radix_block(names: Iterable[str], task_count: int = 0) -> str:
+    """Generate Bash that maps one array index to one Cartesian combination."""
+    ordered = list(names)
+    lines = [
+        ': "${SLURM_ARRAY_TASK_ID:?SLURM_ARRAY_TASK_ID is required}"',
+        '[[ "$SLURM_ARRAY_TASK_ID" =~ ^[0-9]+$ ]] || { echo "Invalid SLURM_ARRAY_TASK_ID: $SLURM_ARRAY_TASK_ID" >&2; exit 2; }',
+        "clusterduck_index=$SLURM_ARRAY_TASK_ID",
+    ]
+    if task_count:
+        lines.append(
+            f'(( clusterduck_index < {task_count} )) || {{ echo "SLURM_ARRAY_TASK_ID is outside the configured sweep" >&2; exit 2; }}'
+        )
 
-    # Radices
-    for i, key in enumerate(schema):
-        if i < n - 1:
-            later = [f"L{j}" for j in range(i + 1, n)]
-            prod = " * ".join(later)
-            lines.append(f"R{i}=$(( {prod} ))  # product of later lengths")
-        else:
-            lines.append(f"R{i}=1")
-
-    lines.append("")
-    lines.append("k=${SLURM_ARRAY_TASK_ID}")
-    lines.append("")
-
-    # Indices
-    for i, key in enumerate(schema):
-        lines.append(f"i{i}=$(( (k / R{i}) % L{i} ))")
-
-    lines.append("")
-
-    # Assign values
-    for i, key in enumerate(schema):
-        lines.append(f'{key}="${{{key}_vals[$i{i}]}}"')
-
+    # Decode from the last parameter to the first. This avoids materializing
+    # configurations and needs no precomputed radix table.
+    for name in reversed(ordered):
+        lines.extend(
+            [
+                f"{name}_index=$((clusterduck_index % ${{#{name}_values[@]}}))",
+                f"clusterduck_index=$((clusterduck_index / ${{#{name}_values[@]}}))",
+                f'{name}="${{{name}_values[${name}_index]}}"',
+            ]
+        )
     return "\n".join(lines)
-
-

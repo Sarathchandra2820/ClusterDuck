@@ -1,40 +1,36 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 import os
+from typing import List, Optional
+
 
 @dataclass
 class Set_paths:
-    
- 
-    input_script: str = None
-    output_dir: str = None
-    output_files: str = None
-    scratch_dir: str = None
+    input_script: Optional[str] = None
+    output_dir: Optional[str] = None
+    output_files: Optional[str] = None
+    scratch_dir: Optional[str] = None
+    dependencies: List[str] = field(default_factory=list)
+    env_path: Optional[str] = None
 
-    dependancies: list[str] = field(default_factory=list)
+    @property
+    def dependancies(self) -> List[str]:
+        """Backward-compatible alias for the old misspelling."""
+        return self.dependencies
 
-    env_path: str = None
+    @dependancies.setter
+    def dependancies(self, value: List[str]) -> None:
+        self.dependencies = list(value)
 
-    def make_dirs(self):
-        
-        if self.scratch_dir != "$TMPDIR":
+    def make_dirs(self) -> None:
+        if self.scratch_dir and self.scratch_dir != "$TMPDIR":
             os.makedirs(self.scratch_dir, exist_ok=True)
-        os.makedirs(self.output_dir, exist_ok=True)
+        if self.output_dir:
+            os.makedirs(self.output_dir, exist_ok=True)
 
-    def rm_dirs(self):
-        if os.path.exists(self.scratch_dir):
+    def rm_dirs(self) -> None:
+        if self.scratch_dir and self.scratch_dir != "$TMPDIR" and os.path.isdir(self.scratch_dir):
             os.rmdir(self.scratch_dir)
-        if os.path.exists(self.output_dir):
+        if self.output_dir and os.path.isdir(self.output_dir):
             os.rmdir(self.output_dir)
-            
-
-
-
-path = Set_paths()
-path.input_script = os.path.join(os.getcwd(), 'run_experiment.sh')
-path.output_dir = os.path.join(os.getcwd(), 'results')
-path.scratch_dir = os.path.join(os.getcwd(), 'scratch')
-
-path.make_dirs()
-path.rm_dirs()
-
-print(path.scratch_dir)
