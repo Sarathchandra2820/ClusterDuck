@@ -141,7 +141,7 @@ print(inputs.list_arguments())
 
 | Argument | Purpose |
 | --- | --- |
-| `default` | Value to use when the option is absent; its type is inferred when `type` is omitted. |
+| `default` | Value to use when the option is absent; when `type` is omitted, its Python type is used as the converter. |
 | `type` | Converter for the supplied value, such as `int`, `float`, or `pathlib.Path`. |
 | `required` | Require the option to be present. |
 | `choices` | Restrict accepted values to a collection. |
