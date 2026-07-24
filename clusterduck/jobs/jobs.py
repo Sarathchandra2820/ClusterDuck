@@ -106,6 +106,31 @@ class Job:
         self.output_argument = argument
         return self
 
+    def output_root(
+        self,
+        path: str,
+        *,
+        hierarchy: Optional[Sequence[str]] = None,
+        argument: Optional[str] = "--output-dir",
+    ) -> "Job":
+        if hierarchy is None:
+            hierarchy = [
+                variable.name
+                for variable in self.settings.variable.var
+                if len(variable.sweep) > 1
+            ]
+
+        unknown = set(hierarchy) - set(self.settings.variable.export_names())
+        if unknown:
+            raise ValueError(
+                f"unknown output hierarchy variables: {', '.join(sorted(unknown))}"
+            )
+
+        suffix = "/".join(f"{{{name}}}" for name in hierarchy)
+        self.output_template = str(Path(path) / suffix) if suffix else str(path)
+        self.output_argument = argument
+        return self
+
     def collect(self, *patterns: str) -> "Job":
         self.collect_patterns.extend(patterns)
         return self

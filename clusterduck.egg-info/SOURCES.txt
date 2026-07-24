@@ -15,6 +15,7 @@ clusterduck/core/settings.py
 clusterduck/core/sweep.py
 clusterduck/core/var_t.py
 clusterduck/jobs/__init__.py
+clusterduck/jobs/args.py
 clusterduck/jobs/jobs.py
 clusterduck/slurm/__init__.py
 clusterduck/slurm/slurm_write.py
