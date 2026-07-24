@@ -1,19 +1,24 @@
-# ClusterDuck
+# ClusterDuck 🦆
 
-ClusterDuck is a small Python library that turns parameter sweeps into a single
-vectorized SLURM array script. Each array task decodes one Cartesian combination,
-runs one workload, and writes to its own output directory.
+**Turn one experiment into a scalable SLURM sweep.** ClusterDuck converts Python
+parameter definitions into a single, portable SLURM array script—so every task
+runs exactly one configuration and writes to an organized output directory.
 
-## Why
+No handwritten job loops. No manually tracked task IDs. Define the sweep,
+generate the script, and submit it.
 
-- One generated Bash script for an entire sweep.
-- Constant-memory mixed-radix task decoding.
-- Native SLURM array concurrency limits.
-- Command-line, environment-variable, and text-template inputs.
-- Per-task scratch directories with deterministic cleanup.
-- Safe shell quoting and validated output paths.
+## Why ClusterDuck?
 
-## Install
+| | |
+| --- | --- |
+| **One script, every combination** | Generate an entire Cartesian sweep as one SLURM array. |
+| **Scale without the overhead** | Decode task parameters with constant-memory mixed-radix indexing. |
+| **Control concurrency** | Use native SLURM array limits to respect cluster capacity. |
+| **Fit your workflow** | Supply values as command-line options, environment variables, or rendered templates. |
+| **Keep results tidy** | Give every task its own scratch and deterministic output directory. |
+| **Submit with confidence** | Generated commands use safe shell quoting and validated paths. |
+
+## Get started
 
 ```bash
 git clone https://github.com/Sarathchandra2820/ClusterDuck.git
@@ -24,9 +29,10 @@ python3 -m pip install -e .
 ClusterDuck requires Python 3.9 or newer. Generated template jobs also require
 `python3` on the compute node for the lightweight template renderer.
 
-## Generate a sweep
+## Your first sweep
 
-Create `generate_job.py`:
+Create `generate_job.py`. This 108-task sweep combines three molecules, twelve
+distances, and three methods while running no more than 16 tasks at once:
 
 ```python
 from clusterduck import Job
@@ -55,23 +61,23 @@ job.write("gw_sweep.slurm")
 print(job.task_count)  # 108
 ```
 
-Generate and submit it:
+Generate and submit:
 
 ```bash
 python3 generate_job.py
 sbatch gw_sweep.slurm
 ```
 
-The generated array directive is:
+ClusterDuck generates this array directive:
 
 ```bash
 #SBATCH --array=0-107%16
 ```
 
-## Workload input scheme
+## Pass values to your workload
 
-The workload runs exactly one configuration. It does not contain sweep loops.
-By default, sweep parameters become command-line arguments:
+Each array task runs your workload once—without sweep loops in the workload
+itself. By default, sweep parameters become command-line arguments:
 
 ```python
 # run_experiment.py
@@ -111,6 +117,39 @@ from clusterduck import Argument
 job.sweep("learning_rate", [0.01, 0.05], bind=Argument("--lr"))
 ```
 
+### Read arguments with less boilerplate
+
+For lightweight workloads, `ArgParses` creates command-line options on demand.
+Attribute names become kebab-case options: `inputs.learning_rate()` reads
+`--learning-rate`. It ignores options that your workload has not requested, so
+you can read only the values it needs.
+
+```python
+# run_experiment.py
+from clusterduck.jobs import args
+
+inputs = args.ArgParses()
+molecule = inputs.molecule(required=True)
+distance = inputs.distance(type=float, required=True)
+method = inputs.method(default="G0W0", choices=["G0W0", "evGW", "TDDFT"])
+
+print(inputs.list_arguments())
+# ['molecule', 'distance', 'method']
+```
+
+`ArgParses` accepts these optional keyword arguments for every value:
+
+| Argument | Purpose |
+| --- | --- |
+| `default` | Value to use when the option is absent; its type is inferred when `type` is omitted. |
+| `type` | Converter for the supplied value, such as `int`, `float`, or `pathlib.Path`. |
+| `required` | Require the option to be present. |
+| `choices` | Restrict accepted values to a collection. |
+| `nargs` | Accept one or more values using `argparse`'s `nargs` rules. |
+
+For example, `inputs.basis(default="aug-cc-pvdz")` reads `--basis` and returns
+`"aug-cc-pvdz"` when it is not supplied.
+
 ### Environment variables
 
 ```python
@@ -146,7 +185,7 @@ job.write("simulation.slurm")
 
 Only explicit `{{ name }}` placeholders are replaced.
 
-## Staging and outputs
+## Stage files and collect outputs
 
 `job.stage()` copies files or directories into the unique task scratch directory.
 Relative output templates are resolved from the submission directory. Parameters
@@ -163,7 +202,7 @@ job.collect("result*", "energies*")
 
 Set `job.keep_failed_scratch = True` to retain scratch files after a failed task.
 
-## Test
+## Verify your installation
 
 The test suite uses only the Python standard library and does not require SLURM:
 
@@ -174,7 +213,7 @@ python3 -m unittest discover -s tests -v
 It validates mixed-radix coverage, Bash syntax, quoting, template rendering, and
 end-to-end local execution of generated array tasks.
 
-## Scope
+## What ClusterDuck does—and does not do
 
 ClusterDuck generates scripts; it does not submit or monitor jobs. Keeping
 submission explicit (`sbatch generated.slurm`) makes generation testable and avoids
