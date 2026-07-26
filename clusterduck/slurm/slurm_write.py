@@ -249,6 +249,15 @@ class SlurmWrite:
         lines.extend(self._template_lines())
         if self.job.templates:
             lines.append("")
+        if self.job.command_workdir:
+            lines.extend(
+                [
+                    f"command_workdir=\"$workdir\"/{_quote(self.job.command_workdir)}",
+                    '[[ -d "$command_workdir" ]] || { echo "Missing working directory: $command_workdir" >&2; exit 2; }',
+                    'cd "$command_workdir"',
+                    "",
+                ]
+            )
         lines.extend(self._command_lines())
         lines.extend(self._collect_lines())
         lines.append('echo "ClusterDuck task ${SLURM_ARRAY_TASK_ID} completed"')

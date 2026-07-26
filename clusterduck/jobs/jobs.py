@@ -41,6 +41,7 @@ class Job:
         self.collect_patterns: List[str] = []
         self.templates: List[TemplateSpec] = []
         self.stdin: Optional[str] = None
+        self.command_workdir: Optional[str] = None
         self.keep_failed_scratch = False
 
         if name is not None:
@@ -95,6 +96,16 @@ class Job:
             text = str(path)
             if text not in self.set_paths.dependencies:
                 self.set_paths.dependencies.append(text)
+        return self
+
+    def working_directory(self, path: Union[str, Path]) -> "Job":
+        text = str(path)
+        directory = Path(text)
+        if not text or any(character in text for character in ("\x00", "\n", "\r")):
+            raise ValueError("working directory cannot be empty or contain control characters")
+        if directory.is_absolute() or ".." in directory.parts:
+            raise ValueError("working directory must stay inside the task scratch directory")
+        self.command_workdir = text
         return self
 
     def output(

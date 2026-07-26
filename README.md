@@ -152,6 +152,18 @@ Only explicit `{{ name }}` placeholders are replaced.
 Relative output templates are resolved from the submission directory. Parameters
 used as path components cannot contain `/`, `.` or `..`.
 
+Commands run from the task scratch root by default. To run from a staged
+subdirectory, set a scratch-relative working directory:
+
+```python
+job.stage("calculation")
+job.working_directory("calculation")
+```
+
+This runs the configured command from `$workdir/calculation`. Absolute paths and
+paths containing `..` are rejected so the working directory remains inside the
+task scratch area.
+
 If the workload accepts an output directory, `job.output()` passes it through
 `--output-dir` by default. Use `argument=None` for programs that write into the
 current directory, then collect artifacts with basename glob patterns:

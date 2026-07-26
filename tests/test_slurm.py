@@ -67,6 +67,23 @@ class SlurmGenerationTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_working_directory_is_scratch_relative(self):
+        job = self.make_job()
+        job.working_directory("calculation files")
+        script = SlurmWrite(job).slurmscript_generate()
+        self.assertIn(
+            "command_workdir=\"$workdir\"/'calculation files'",
+            script,
+        )
+        self.assertIn('cd "$command_workdir"', script)
+
+    def test_unsafe_working_directories_are_rejected(self):
+        job = self.make_job()
+        for path in ("", "/shared/calculation", "../calculation", "input/../../shared"):
+            with self.subTest(path=path):
+                with self.assertRaises(ValueError):
+                    job.working_directory(path)
+
     def test_out_of_range_task_id_is_rejected(self):
         script = SlurmWrite(self.make_job()).slurmscript_generate()
         with tempfile.TemporaryDirectory() as directory:
@@ -143,6 +160,53 @@ a.output_dir.mkdir(parents=True, exist_ok=True)
                     for molecule in ("water molecule", "benzene")
                     for distance in (3, 4, 5)
                 },
+            )
+
+    def test_command_runs_from_staged_working_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            project = root / "calculation files"
+            project.mkdir()
+            worker = project / "worker.py"
+            worker.write_text(
+                """import argparse
+from pathlib import Path
+p = argparse.ArgumentParser()
+p.add_argument('--output-dir', type=Path, required=True)
+a = p.parse_args()
+a.output_dir.mkdir(parents=True, exist_ok=True)
+(a.output_dir / 'cwd.txt').write_text(Path.cwd().name)
+""",
+                encoding="utf-8",
+            )
+
+            job = Job("working_directory", [sys.executable, worker.name])
+            job.stage(project)
+            job.working_directory(project.name)
+            job.output(str(root / "outputs"))
+            script = root / "working-directory.slurm"
+            job.write(script)
+
+            environment = os.environ.copy()
+            environment.update(
+                {
+                    "SLURM_ARRAY_TASK_ID": "0",
+                    "SLURM_JOB_ID": "workdir",
+                    "TMPDIR": str(root / "scratch"),
+                }
+            )
+            result = subprocess.run(
+                ["bash", str(script)],
+                cwd=root,
+                env=environment,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                (root / "outputs/cwd.txt").read_text(encoding="utf-8"),
+                project.name,
             )
 
     def test_template_binding_renders_before_execution(self):
