@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import re
 import shlex
+import tempfile
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Union
 
 from clusterduck.core.bindings import (
@@ -37,6 +39,8 @@ class Job:
         self.bindings: Dict[str, InputBinding] = {}
         self.command: List[str] = []
         self.output_template: Optional[str] = None
+        self.output_root_path: Optional[Path] = None
+        self.output_hierarchy: Optional[List[str]] = None
         self.output_argument: Optional[str] = "--output-dir"
         self.collect_patterns: List[str] = []
         self.templates: List[TemplateSpec] = []
@@ -114,6 +118,8 @@ class Job:
         argument: Optional[str] = "--output-dir",
     ) -> "Job":
         self.output_template = str(template)
+        self.output_root_path = None
+        self.output_hierarchy = None
         self.output_argument = argument
         return self
 
@@ -139,8 +145,49 @@ class Job:
 
         suffix = "/".join(f"{{{name}}}" for name in hierarchy)
         self.output_template = str(Path(path) / suffix) if suffix else str(path)
+        self.output_root_path = Path(path)
+        self.output_hierarchy = list(hierarchy)
         self.output_argument = argument
         return self
+
+    def metadata(self) -> Dict[str, Any]:
+        """Return a machine-readable description of this parameter sweep."""
+        hierarchy = self.output_hierarchy
+        if hierarchy is None:
+            raise ValueError("metadata requires output_root() with a declared hierarchy")
+
+        return {
+            "schema_version": 1,
+            "job_name": self.settings.job_name,
+            "hierarchy": list(hierarchy),
+            "parameters": {
+                variable.name: list(variable.sweep)
+                for variable in self.settings.variable.var
+            },
+            "task_count": self.task_count,
+            "output_template": self.output_template,
+        }
+
+    def write_metadata(self) -> Optional[Path]:
+        """Atomically write metadata.json at the declared output root."""
+        if self.output_root_path is None:
+            return None
+
+        self.output_root_path.mkdir(parents=True, exist_ok=True)
+        destination = self.output_root_path / "metadata.json"
+        content = json.dumps(self.metadata(), indent=2, ensure_ascii=False) + "\n"
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=self.output_root_path,
+            prefix=".metadata.",
+            suffix=".tmp",
+            delete=False,
+        ) as temporary:
+            temporary.write(content)
+            temporary_path = Path(temporary.name)
+        temporary_path.replace(destination)
+        return destination
 
     def collect(self, *patterns: str) -> "Job":
         self.collect_patterns.extend(patterns)
@@ -217,6 +264,8 @@ class Job:
     def write(self, path: Union[str, Path]) -> Path:
         from clusterduck.slurm.slurm_write import SlurmWrite
 
+        script = SlurmWrite(self).slurmscript_generate()
+        self.write_metadata()
         destination = Path(path)
-        destination.write_text(SlurmWrite(self).slurmscript_generate(), encoding="utf-8")
+        destination.write_text(script, encoding="utf-8")
         return destination

@@ -146,6 +146,40 @@ job.write("simulation.slurm")
 
 Only explicit `{{ name }}` placeholders are replaced.
 
+### Output hierarchy metadata
+
+Use `output_root()` when downstream tools need to discover the output hierarchy:
+
+```python
+job.output_root(
+    "outputs",
+    hierarchy=["molecule", "method", "basis"],
+)
+job.write("simulation.slurm")
+```
+
+Alongside the generated SLURM script, ClusterDuck creates
+`outputs/metadata.json`. It records the ordered hierarchy, all parameter values,
+the task count, and the output template. The file is written once during job
+generation; array tasks do not concurrently modify it.
+
+```python
+import json
+from pathlib import Path
+
+root = Path("outputs")
+metadata = json.loads((root / "metadata.json").read_text(encoding="utf-8"))
+
+selection = {
+    "molecule": "water",
+    "method": "MP2",
+    "basis": "aug-cc-pvdz",
+}
+result_dir = root.joinpath(
+    *(selection[name] for name in metadata["hierarchy"])
+)
+```
+
 ## Staging and outputs
 
 `job.stage()` copies files or directories into the unique task scratch directory.

@@ -56,6 +56,41 @@ class SlurmGenerationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             SlurmWrite(job).slurmscript_generate()
 
+    def test_output_root_writes_hierarchy_metadata(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output_root = root / "results"
+            job = Job("metadata", ["true"])
+            job.sweep("molecule", ["water", "benzene"])
+            job.sweep("method", ["HF", "MP2"])
+            job.sweep("basis", ["sto-3g"])
+            job.output_root(
+                str(output_root),
+                hierarchy=["molecule", "method", "basis"],
+                argument=None,
+            )
+
+            job.write(root / "metadata.slurm")
+
+            metadata = json.loads(
+                (output_root / "metadata.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(metadata["schema_version"], 1)
+            self.assertEqual(
+                metadata["hierarchy"], ["molecule", "method", "basis"]
+            )
+            self.assertEqual(metadata["parameters"]["method"], ["HF", "MP2"])
+            self.assertEqual(metadata["task_count"], 4)
+
+    def test_plain_output_does_not_write_metadata(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            job = Job("plain", ["true"])
+            job.sweep("method", ["HF"])
+            job.output(str(root / "results/{method}"))
+            job.write(root / "plain.slurm")
+            self.assertFalse((root / "results/metadata.json").exists())
+
     def test_generated_script_passes_bash_syntax_check(self):
         script = SlurmWrite(self.make_job()).slurmscript_generate()
         result = subprocess.run(
